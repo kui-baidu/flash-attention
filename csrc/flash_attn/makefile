@@ -1,4 +1,5 @@
 NVCC=nvcc
+LIB=flashattn
 
 NVCCARG=\
      -O3 \
@@ -18,25 +19,26 @@ NVCCARG=\
      -DVERSION_GE_1_1 \
      -DVERSION_GE_1_3 \
      -DVERSION_GE_1_5 \
-     --threads=4 
+     --threads=10
 
-libattn: cus
-	$(NVCC) -shared -Xcompiler="-fPIC" -o libattn.so *.o
+lib: obj
+	$(NVCC) -shared -Xcompiler="-fPIC" -o lib${LIB}.so *.o
 
-cus: clean sync
-	#$(NVCC) $(NVCCARG) -c fmha_api.cpp
-	$(NVCC) $(NVCCARG) -c src/fmha_fwd_hdim32.cu
-	$(NVCC) $(NVCCARG) -c src/fmha_fwd_hdim64.cu
-	$(NVCC) $(NVCCARG) -c src/fmha_fwd_hdim128.cu
-	$(NVCC) $(NVCCARG) -c src/fmha_bwd_hdim32.cu
-	$(NVCC) $(NVCCARG) -c src/fmha_bwd_hdim64.cu
-	$(NVCC) $(NVCCARG) -c src/fmha_bwd_hdim128.cu
-	$(NVCC) $(NVCCARG) -c src/fmha_block_fprop_fp16_kernel.sm80.cu
-	$(NVCC) $(NVCCARG) -c src/fmha_block_dgrad_fp16_kernel_loop.sm80.cu
+obj: sync src/* flash_attn.cpp
+	$(NVCC) $(NVCCARG) -c src/*.cu src/*.cpp flash_attn.cpp
 
-sync:
+sync: cutlass
 	git submodule update --init cutlass
+
+test:
+	$(NVCC) -L${PWD} -ldl -l${LIB} flash_attn_test.cpp -o flash_attn_test
+	LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${PWD} ./flash_attn_test
 
 clean:
 	rm -rf *.so
 	rm -rf *.o
+	rm -rf flash_attn_test
+
+rebuild:
+	$(NVCC) $(NVCCARG) -c flash_attn.cpp
+	$(NVCC) -shared -Xcompiler="-fPIC" -o lib${LIB}.so *.o
