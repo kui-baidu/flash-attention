@@ -1,5 +1,5 @@
-NVCC=nvcc
-LIB=flashattn
+NVCC ?= nvcc
+LIB = flashattn
 
 NVCCARG=\
      -O3 \
@@ -23,6 +23,12 @@ NVCCARG=\
 
 lib: obj
 	$(NVCC) -shared -Xcompiler="-fPIC" -o lib${LIB}.so *.o
+
+install: lib
+	mkdir -p $(DESTDIR)/lib
+	cp lib${LIB}.so $(DESTDIR)/lib
+	mkdir -p $(DESTDIR)/include
+	cp flash_attn.h $(DESTDIR)/include
 
 obj: sync src/* flash_attn.cpp
 	$(NVCC) $(NVCCARG) -c src/*.cu src/*.cpp flash_attn.cpp
