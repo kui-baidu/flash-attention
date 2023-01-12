@@ -11,7 +11,7 @@ int main() {
             nullptr, // const void *cu_seqlens_k,   // int32, batch_size+1, starting offset of each sequence
             0, // const int total_q,
             0, // const int total_k,
-            0, // const int batch_size,
+            2, // const int batch_size,
             0, // const int num_heads,
             0, // const int head_size,
             0, // const int max_seqlen_q_,
@@ -25,7 +25,8 @@ int main() {
             nullptr, // void *softmax_lse_ptr,       // softmax log_sum_exp
             nullptr, // void *softmax_ptr,
             nullptr, // cudaStream_t stream,
-            0 // int seed // TODO
+            20, // int seed // TODO
+            10
     );
 
     std::cout << "done" << std::endl;

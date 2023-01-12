@@ -41,13 +41,9 @@
 // #include <memory>
 // #include <mutex>
 // #include <stdexcept>
-// #include <string>
+//
+#include <string>
 
-using SeedIncFuncPtr = void (*)(uint64_t, uint64_t *, const int64_t **, uint64_t*, bool*);
-
-#define ASSERT_CHECK(__cond) {}
-
-/*
 #define ASSERT_CHECK(__cond)                             \
       do {                                               \
         const bool __cond_var = (__cond);                \
@@ -59,7 +55,6 @@ using SeedIncFuncPtr = void (*)(uint64_t, uint64_t *, const int64_t **, uint64_t
           throw std::runtime_error(__err_msg);           \
         }                                                \
       } while (0)
-*/
 
 
 void set_params_fprop(FMHA_fprop_params &params,
@@ -225,29 +220,6 @@ void run_fmha_bwd(FMHA_dgrad_params &params, cudaStream_t stream, const bool con
   }
 }
 
-/*
-template <typename T>
-static __global__ void FillConstantKernel(T *ptr, T value, size_t n) {
-  auto idx = static_cast<size_t>(blockDim.x) * blockIdx.x + threadIdx.x;
-  if (idx < n) {
-    ptr[idx] = value;
-  }
-} 
-
-template <typename T>
-static void SetConstValue(void *ptr, T value, size_t n, cudaStream_t stream) {
-  constexpr auto kNumThreads = 1024;
-  auto block = (n + kNumThreads - 1) / kNumThreads; 
-  FillConstantKernel<T><<<block, kNumThreads, 0, stream>>>(static_cast<T *>(ptr), value, n);
-} 
-
-static void SetZero(void *ptr, size_t sizeof_type, std::initializer_list<int> shapes, cudaStream_t stream) {
-    size_t n = sizeof_type;
-    for (int s : shapes) n *= s;
-    cudaMemsetAsync(ptr, 0, n, stream);
-}
-*/
-
 
 #ifdef __cplusplus
 extern "C" {
@@ -277,7 +249,8 @@ void flash_attn_fwd(
         void *softmax_lse_ptr,       // softmax log_sum_exp
         void *softmax_ptr,
         cudaStream_t stream,
-        int seed // TODO
+        uint64_t seed,
+        uint64_t offset
 ) {
 
     auto dprops = GetDeviceProperties(-1);
@@ -338,18 +311,8 @@ void flash_attn_fwd(
                      is_bf16,
                      num_splits);
 
-    // number of times random will be generated per thread, to offset philox counter in thc random
-    // state
-    // We use a custom RNG that increases the offset by batch_size * nheads * 32.
-    int64_t counter_offset = launch_params.params.b * launch_params.params.h * 32;
-    PhiloxCudaState rng_engine_inputs;
-
     if( is_dropout ) {
-        /*
-        // See Note [Acquire lock when using random generators]
-        std::lock_guard<std::mutex> lock(gen->mutex_);
-        launch_params.params.philox_args = gen->philox_cuda_state(counter_offset);
-        */
+        launch_params.params.philox_args = PhiloxCudaState(seed, offset);
     }
 
     run_fmha_fwd(launch_params);
@@ -383,7 +346,8 @@ void flash_attn_bwd(
         void *softmax_lse_ptr,
         void *dsoftmax_ptr,
         cudaStream_t stream,
-        int seed // TODO
+        uint64_t seed,
+        uint64_t offset
 ) {
 
     auto dprops = GetDeviceProperties(-1);
@@ -458,15 +422,8 @@ void flash_attn_bwd(
         }
     }
 
-    // We use a custom RNG that increases the offset by batch_size * nheads * 32.
-    int64_t counter_offset = params.b * params.h * 32;
-
     if( is_dropout ) {
-        /*
-        // See Note [Acquire lock when using random generators]
-        std::lock_guard<std::mutex> lock(gen->mutex_);
-        params.philox_args = gen->philox_cuda_state(counter_offset);
-        */
+        params.philox_args = PhiloxCudaState(seed, offset);
     }
 
     launch(params, stream, /*configure=*/false);

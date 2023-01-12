@@ -31,7 +31,8 @@ void flash_attn_fwd(
         void *softmax_lse_ptr,       // softmax log_sum_exp
         void *softmax_ptr,
         cudaStream_t stream,
-        int seed // TODO
+        uint64_t seed,
+        uint64_t offset
 );
 
 void flash_attn_bwd(
@@ -61,7 +62,8 @@ void flash_attn_bwd(
         void *softmax_lse_ptr,
         void *dsoftmax_ptr,
         cudaStream_t stream,
-        int seed // TODO
+        uint64_t seed,
+        uint64_t offset
 );
 
 const char *version();
