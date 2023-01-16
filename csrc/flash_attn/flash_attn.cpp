@@ -252,11 +252,14 @@ void flash_attn_fwd(
         uint64_t seed,
         uint64_t offset
 ) {
+    // printf("forward seed %jd offset %jd\b", seed, offset);
 
     auto dprops = GetDeviceProperties(-1);
     bool is_sm75 = dprops->major == 7 && dprops->minor == 5;
     bool is_sm80 = dprops->major == 8 && dprops->minor == 0;
     bool is_sm8x = dprops->major == 8 && dprops->minor >= 0;
+
+    ASSERT_CHECK(is_sm8x || is_sm75);
 
     const bool return_softmax = (softmax_ptr != nullptr);
     bool is_dropout = p_dropout > 0.0;
@@ -276,13 +279,13 @@ void flash_attn_fwd(
     int max_seqlen_q = ((max_seqlen_q_ + 16 - 1) / 16) * 16;
     bool loop = max_seqlen_k > blocksize_c;
 
-    void* o_tmp_ptr = nullptr;
+    void* o_tmp_ptr;
     if (loop) {
-        SetZero(o_tmp_ptr, 4, {total_q, num_heads, head_size}, stream);
+        SetZero(o_tmp_ptr, 4, {total_q, num_heads, head_size}, stream); // float
     }
 
     if (return_softmax) {
-        SetZero(softmax_ptr, 2, {batch_size, num_heads, max_seqlen_q}, stream);  
+        SetZero(softmax_ptr, 2, {batch_size, num_heads, max_seqlen_q}, stream);  // float16
     }
 
     if (zero_tensors) {
@@ -349,6 +352,7 @@ void flash_attn_bwd(
         uint64_t seed,
         uint64_t offset
 ) {
+    // printf("backward seed %jd offset %jd\b", seed, offset);
 
     auto dprops = GetDeviceProperties(-1);
     bool is_sm75 = dprops->major == 7 && dprops->minor == 5;
@@ -375,7 +379,7 @@ void flash_attn_bwd(
     int max_seqlen_q = ((max_seqlen_q_ + 16 - 1) / 16) * 16;
     bool loop = max_seqlen_k > blocksize_c;
 
-    void *dq_tmp_ptr = nullptr;
+    void *dq_tmp_ptr;
     if (loop) {
         SetZero(dq_tmp_ptr, 4, {total_q, num_heads, head_size}, stream);
     }
@@ -414,7 +418,7 @@ void flash_attn_bwd(
     launch(params, stream, /*configure=*/true);
 
     if (params.num_splits > 1) {
-        if (dq_tmp_ptr == nullptr) {
+        if (loop) {
             SetZero(dq_tmp_ptr, 4, {total_q, num_heads, head_size}, stream);
             params.o_tmp_ptr = dq_tmp_ptr; // o_tmp stores dq_tmp in the backward pass
         } else {
@@ -429,8 +433,8 @@ void flash_attn_bwd(
     launch(params, stream, /*configure=*/false);
 
     if (params.num_splits > 1) {
-        dq = dq_tmp_ptr;
         //dq.copy_(dq_tmp);
+        Float2Half(dq_tmp_ptr, dq, stream);
     }
 }
 

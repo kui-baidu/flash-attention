@@ -6,6 +6,17 @@ void SetZero(void *ptr, size_t sizeof_type, std::initializer_list<int> shapes, c
     cudaMemsetAsync(ptr, 0, n, stream);
 }
 
+static __global__ void _float2half(float *float_ptr, __half *half_ptr) {
+    const int idx = threadIdx.x + blockDim.x * blockIdx.x;
+    half_ptr[idx] = __float2half(float_ptr[idx]);
+}
+
+void Float2Half(void *float_ptr, void *half_ptr, cudaStream_t stream) {
+  constexpr auto kNumThreads = 1024;
+  auto block = 512;
+  _float2half<<<block, kNumThreads, 0, stream>>>(static_cast<float *>(float_ptr), static_cast<__half *>(float_ptr));
+} 
+
 template <typename T>
 static __global__ void FillConstantKernel(T *ptr, T value, size_t n) {
   auto idx = static_cast<size_t>(blockDim.x) * blockIdx.x + threadIdx.x;
