@@ -30,6 +30,8 @@ void flash_attn_fwd(
         const int num_splits,        // SMs per attention matrix, can be 1
         void *softmax_lse_ptr,       // softmax log_sum_exp
         void *softmax_ptr,
+        void *workspace_ptr,
+        uint64_t *workspace_size,
         cudaStream_t stream,
         uint64_t seed,
         uint64_t offset
@@ -61,6 +63,8 @@ void flash_attn_bwd(
         const int num_splits,
         void *softmax_lse_ptr,
         void *dsoftmax_ptr,
+        void *workspace_ptr,
+        uint64_t *workspace_size,
         cudaStream_t stream,
         uint64_t seed,
         uint64_t offset

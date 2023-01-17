@@ -248,6 +248,8 @@ void flash_attn_fwd(
         const int num_splits,        // SMs per attention matrix, can be 1
         void *softmax_lse_ptr,       // softmax log_sum_exp
         void *softmax_ptr,
+        void *workspace_ptr,
+        uint64_t *workspace_size,
         cudaStream_t stream,
         uint64_t seed,
         uint64_t offset
@@ -279,9 +281,12 @@ void flash_attn_fwd(
     int max_seqlen_q = ((max_seqlen_q_ + 16 - 1) / 16) * 16;
     bool loop = max_seqlen_k > blocksize_c;
 
-    void* o_tmp_ptr;
+    void* o_tmp_ptr = workspace_ptr;
     if (loop) {
+        *workspace_size = uint64_t(total_q) * num_heads * head_size * sizeof(float);
         SetZero(o_tmp_ptr, 4, {total_q, num_heads, head_size}, stream); // float
+    } else {
+        *workspace_size = 0;
     }
 
     if (return_softmax) {
@@ -348,6 +353,8 @@ void flash_attn_bwd(
         const int num_splits,
         void *softmax_lse_ptr,
         void *dsoftmax_ptr,
+        void *workspace_ptr,
+        uint64_t *workspace_size,
         cudaStream_t stream,
         uint64_t seed,
         uint64_t offset
@@ -379,15 +386,18 @@ void flash_attn_bwd(
     int max_seqlen_q = ((max_seqlen_q_ + 16 - 1) / 16) * 16;
     bool loop = max_seqlen_k > blocksize_c;
 
-    void *dq_tmp_ptr;
+    void *dq_tmp_ptr = workspace_ptr;
     if (loop) {
+        *workspace_size = uint64_t(total_q) * num_heads * head_size * sizeof(float);
         SetZero(dq_tmp_ptr, 4, {total_q, num_heads, head_size}, stream);
+    } else {
+        *workspace_size = 0;
     }
 
     if( zero_tensors ) {
         SetZero(dq, 2, {total_q, num_heads, head_size}, stream);
         SetZero(dk, 2, {total_q, num_heads, head_size}, stream);
-        SetZero(dsoftmax_ptr, 2, {batch_size, num_heads, max_seqlen_q}, stream);  
+        SetZero(dsoftmax_ptr, 4, {batch_size, num_heads, max_seqlen_q}, stream);  
     }
 
     FMHA_dgrad_params params;
@@ -434,7 +444,7 @@ void flash_attn_bwd(
 
     if (params.num_splits > 1) {
         //dq.copy_(dq_tmp);
-        Float2Half(dq_tmp_ptr, dq, stream);
+        Float2Half(dq_tmp_ptr, dq, uint64_t(total_q) * num_heads * head_size, stream);
     }
 }
 

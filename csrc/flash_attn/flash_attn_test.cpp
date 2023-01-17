@@ -24,6 +24,8 @@ int main() {
             0, // const int num_splits,        // SMs per attention matrix, can be 1
             nullptr, // void *softmax_lse_ptr,       // softmax log_sum_exp
             nullptr, // void *softmax_ptr,
+            nullptr, // void *workspace_ptr,
+	    0, // uint64_t *workspace_size,
             nullptr, // cudaStream_t stream,
             20, // int seed // TODO
             10

@@ -8,4 +8,4 @@ void SetZero(void *ptr, size_t sizeof_type, std::initializer_list<int> shapes, c
 template <typename T>
 void SetConstValue(void *ptr, T value, size_t n, cudaStream_t stream);
 
-void Float2Half(void *float_ptr, void *half_ptr, cudaStream_t stream);
+void Float2Half(void *float_ptr, void *half_ptr, size_t n, cudaStream_t stream);
