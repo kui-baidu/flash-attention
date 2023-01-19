@@ -444,7 +444,11 @@ void flash_attn_bwd(
 
     if (params.num_splits > 1) {
         //dq.copy_(dq_tmp);
-        Float2Half(dq_tmp_ptr, dq, uint64_t(total_q) * num_heads * head_size, stream);
+        if (is_bf16) {
+            Float2BF16(dq_tmp_ptr, dq, uint64_t(total_q) * num_heads * head_size, stream);
+        } else {
+            Float2Half(dq_tmp_ptr, dq, uint64_t(total_q) * num_heads * head_size, stream);
+        }
     }
 }
 
