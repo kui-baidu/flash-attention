@@ -12,40 +12,13 @@ static std::vector<cudaDeviceProp> g_device_props;
 
 int GetCurrentDeviceId() {
   int device_id;
-  cudaGetDevice(&device_id);
+  FMHA_CHECK_CUDA(cudaGetDevice(&device_id));
   return device_id;
 }
 
 static int GetCudaDeviceCount() {
-  int driverVersion = 0;
-  cudaError_t status = cudaDriverGetVersion(&driverVersion);
-
-  if (!(status == cudaSuccess && driverVersion != 0)) {
-    return 0;
-  }
-
-  const auto *cuda_visible_devices = std::getenv("CUDA_VISIBLE_DEVICES");
-
-  if (cuda_visible_devices != nullptr) {
-    std::string cuda_visible_devices_str(cuda_visible_devices);
-    if (!cuda_visible_devices_str.empty()) {
-      cuda_visible_devices_str.erase(
-          0, cuda_visible_devices_str.find_first_not_of('\''));
-      cuda_visible_devices_str.erase(
-          cuda_visible_devices_str.find_last_not_of('\'') + 1);
-      cuda_visible_devices_str.erase(
-          0, cuda_visible_devices_str.find_first_not_of('\"'));
-      cuda_visible_devices_str.erase(
-          cuda_visible_devices_str.find_last_not_of('\"') + 1);
-    }
-    if (std::all_of(cuda_visible_devices_str.begin(),
-                    cuda_visible_devices_str.end(),
-                    [](char ch) { return ch == ' '; })) {
-      return 0;
-    }
-  }
   int count;
-  cudaGetDeviceCount(&count);
+  FMHA_CHECK_CUDA(cudaGetDeviceCount(&count));
   return count;
 }
 
@@ -65,7 +38,7 @@ cudaDeviceProp* GetDeviceProperties(int id) {
   }
 
   std::call_once(*(g_device_props_init_flags[id]), [&] {
-        cudaGetDeviceProperties(&g_device_props[id], id);
+        FMHA_CHECK_CUDA(cudaGetDeviceProperties(&g_device_props[id], id));
   });
 
   return &g_device_props[id];

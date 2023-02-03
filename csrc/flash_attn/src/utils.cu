@@ -3,7 +3,7 @@
 void SetZero(void *ptr, size_t sizeof_type, std::initializer_list<int> shapes, cudaStream_t stream) {
     size_t n = sizeof_type;
     for (int s : shapes) n *= s;
-    cudaMemsetAsync(ptr, 0, n, stream);
+    FMHA_CHECK_CUDA(cudaMemsetAsync(ptr, 0, n, stream));
 }
 
 template <typename T>

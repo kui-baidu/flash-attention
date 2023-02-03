@@ -31,17 +31,17 @@
 #include "cuda_utils.h"
 #include <cmath>
 #include <limits>
-//
-// #include "cuda.h"
-// #include "cuda_runtime.h"
-// #include "dlfcn.h"
-// #include "math.h"
-// #include <cstring>
-// #include <exception>
-// #include <memory>
-// #include <mutex>
-// #include <stdexcept>
-//
+
+#include "cuda.h"
+#include "cuda_runtime.h"
+#include "dlfcn.h"
+#include "math.h"
+#include <memory>
+#include <mutex>
+#include <stdexcept>
+
+#include <cstring>
+#include <exception>
 #include <string>
 
 #define ASSERT_CHECK(__cond)                             \
@@ -56,6 +56,33 @@
         }                                                \
       } while (0)
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+static thread_local std::unique_ptr<char[]> flash_attn_err_msg;
+
+static void flash_attn_set_error(const char *msg) {
+  if (msg == nullptr || *msg == '\0') {
+    msg = "unknown error";
+  }
+
+  auto n = strlen(msg);
+  std::unique_ptr<char[]> new_err_msg(new char[n+1]);
+  std::strcpy(new_err_msg.get(), msg);
+  flash_attn_err_msg = std::move(new_err_msg);
+}
+
+const char *flash_attn_error() {
+  return flash_attn_err_msg.get();
+}
+
+#ifdef __cplusplus
+}
+#endif
+
+#define FLASHATTNLIB_BEGIN_FUNC try {
+#define FLASHATTNLIB_END_FUNC } catch (::std::exception &__e) { flash_attn_set_error(__e.what()); } catch (...) { flash_attn_set_error(nullptr); return false; }
 
 void set_params_fprop(FMHA_fprop_params &params,
                       // sizes
@@ -226,7 +253,7 @@ extern "C" {
 #endif
 
 
-void flash_attn_fwd(
+bool flash_attn_fwd(
         const void *q,              // total_q x num_heads x head_size, total_q := \sum_{i=0}^{b} s_i
         const void *k,              // total_k x num_heads x head_size, total_k := \sum_{i=0}^{b} s_i
         const void *v,              // total_k x num_heads x head_size, total_k := \sum_{i=0}^{b} s_i
@@ -255,6 +282,7 @@ void flash_attn_fwd(
         uint64_t offset
 ) {
     // printf("forward seed %jd offset %jd\b", seed, offset);
+    FLASHATTNLIB_BEGIN_FUNC 
 
     auto dprops = GetDeviceProperties(-1);
     bool is_sm75 = dprops->major == 7 && dprops->minor == 5;
@@ -284,7 +312,7 @@ void flash_attn_fwd(
         } else {
             *workspace_size = 0;
         }
-        return;
+        return true;
     }
 
     const bool return_softmax = (softmax_ptr != nullptr);
@@ -330,10 +358,12 @@ void flash_attn_fwd(
     }
 
     run_fmha_fwd(launch_params);
+
+    FLASHATTNLIB_END_FUNC 
 }
 
 
-void flash_attn_bwd(
+bool flash_attn_bwd(
         const void *q,              // total_q x num_heads x head_size, total_q := \sum_{i=0}^{b} s_i
         const void *k,              // total_k x num_heads x head_size, total_k := \sum_{i=0}^{b} s_i
         const void *v,              // total_k x num_heads x head_size, total_k := \sum_{i=0}^{b} s_i
@@ -366,6 +396,8 @@ void flash_attn_bwd(
         uint64_t offset
 ) {
     // printf("backward seed %jd offset %jd\b", seed, offset);
+
+    FLASHATTNLIB_BEGIN_FUNC 
 
     auto dprops = GetDeviceProperties(-1);
     bool is_sm75 = dprops->major == 7 && dprops->minor == 5;
@@ -400,7 +432,7 @@ void flash_attn_bwd(
         } else {
             *workspace_size = 0;
         }
-        return;
+        return true;
     }
 
     if (loop) {
@@ -463,12 +495,11 @@ void flash_attn_bwd(
             Float2Half(dq_tmp_ptr, dq, uint64_t(total_q) * num_heads * head_size, stream);
         }
     }
-}
 
-const char *version() {
-  return "0.0";
+    FLASHATTNLIB_END_FUNC 
 }
 
 #ifdef __cplusplus
 }
 #endif
+

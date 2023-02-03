@@ -70,7 +70,7 @@ void flash_attn_bwd(
         uint64_t offset
 );
 
-const char *version();
+const char *flash_attn_error();
 
 #ifdef __cplusplus
 }

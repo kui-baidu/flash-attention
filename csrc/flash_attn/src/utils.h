@@ -4,6 +4,8 @@
 #include <vector>
 #include <initializer_list>
 
+#include "fmha_utils.h"
+
 void SetZero(void *ptr, size_t sizeof_type, std::initializer_list<int> shapes, cudaStream_t stream);
 
 template <typename T>

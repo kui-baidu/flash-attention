@@ -26,12 +26,14 @@ add_library(flashattn SHARED
 
 target_compile_options(flashattn PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:
      -O3 
+     -w
      -Xcompiler="-fPIC"
      -Xcompiler="-O3"
      -Xcompiler="-DVERSION_GE_1_1" 
      -Xcompiler="-DVERSION_GE_1_3" 
      -Xcompiler="-DDVERSION_GE_1_5" 
-     -gencode arch=compute_80,code=sm_80 
+     "SHELL:-gencode arch=compute_75,code=sm_75"
+     "SHELL:-gencode arch=compute_80,code=sm_80"
      -U__CUDA_NO_HALF_OPERATORS__ 
      -U__CUDA_NO_HALF_CONVERSIONS__ 
      -U__CUDA_NO_HALF2_OPERATORS__
@@ -39,7 +41,6 @@ target_compile_options(flashattn PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:
      --expt-relaxed-constexpr 
      --expt-extended-lambda 
      --use_fast_math 
-     --ptxas-options=-v
      -DVERSION_GE_1_1 
      -DVERSION_GE_1_3 
      -DVERSION_GE_1_5
