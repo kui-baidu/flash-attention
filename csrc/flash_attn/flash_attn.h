@@ -8,7 +8,7 @@
 extern "C" {
 #endif
 
-void flash_attn_fwd(
+bool flash_attn_fwd(
         const void *q,              // total_q x num_heads x head_size, total_q := \sum_{i=0}^{b} s_i
         const void *k,              // total_k x num_heads x head_size, total_k := \sum_{i=0}^{b} s_i
         const void *v,              // total_k x num_heads x head_size, total_k := \sum_{i=0}^{b} s_i
@@ -37,7 +37,7 @@ void flash_attn_fwd(
         uint64_t offset
 );
 
-void flash_attn_bwd(
+bool flash_attn_bwd(
         const void *q,              // total_q x num_heads x head_size, total_q := \sum_{i=0}^{b} s_i
         const void *k,              // total_k x num_heads x head_size, total_k := \sum_{i=0}^{b} s_i
         const void *v,              // total_k x num_heads x head_size, total_k := \sum_{i=0}^{b} s_i
