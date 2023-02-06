@@ -34,6 +34,7 @@ target_compile_options(flashattn PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:
      -Xcompiler="-DDVERSION_GE_1_5" 
      "SHELL:-gencode arch=compute_75,code=sm_75"
      "SHELL:-gencode arch=compute_80,code=sm_80"
+     "SHELL:-gencode arch=compute_86,code=sm_86"
      -U__CUDA_NO_HALF_OPERATORS__ 
      -U__CUDA_NO_HALF_CONVERSIONS__ 
      -U__CUDA_NO_HALF2_OPERATORS__

@@ -10,7 +10,7 @@ static std::once_flag g_device_props_size_init_flag;
 static std::vector<std::unique_ptr<std::once_flag>> g_device_props_init_flags;
 static std::vector<cudaDeviceProp> g_device_props;
 
-int GetCurrentDeviceId() {
+static int GetCurrentDeviceId() {
   int device_id;
   FMHA_CHECK_CUDA(cudaGetDevice(&device_id));
   return device_id;

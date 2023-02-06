@@ -82,7 +82,7 @@ const char *flash_attn_error() {
 #endif
 
 #define FLASHATTNLIB_BEGIN_FUNC try {
-#define FLASHATTNLIB_END_FUNC } catch (::std::exception &__e) { flash_attn_set_error(__e.what()); } catch (...) { flash_attn_set_error(nullptr); return false; }
+#define FLASHATTNLIB_END_FUNC } catch (::std::exception &__e) { flash_attn_set_error(__e.what()); return false; } catch (...) { flash_attn_set_error(nullptr); return false; }
 
 void set_params_fprop(FMHA_fprop_params &params,
                       // sizes
@@ -319,17 +319,10 @@ bool flash_attn_fwd(
     bool is_dropout = p_dropout > 0.0;
     Launch_params<FMHA_fprop_params> launch_params(dprops, stream, is_dropout, return_softmax);
 
-    if (loop) {
-        SetZero(o_tmp_ptr, 4, {total_q, num_heads, head_size}, stream); // float
-    }
-
-    if (return_softmax) {
-        SetZero(softmax_ptr, 2, {batch_size, num_heads, max_seqlen_q}, stream);  // float16
-    }
-
     if (zero_tensors) {
         SetZero(out,  2, {total_q, num_heads, head_size}, stream);
         SetConstValue<float>(softmax_lse_ptr, -std::numeric_limits<float>::infinity(), uint64_t(batch_size) * num_heads * max_seqlen_q, stream);   
+        if (return_softmax) SetZero(softmax_ptr, 2, {batch_size, num_heads, max_seqlen_q}, stream);  // float16
     }
 
     set_params_fprop(launch_params.params,
@@ -358,6 +351,8 @@ bool flash_attn_fwd(
     }
 
     run_fmha_fwd(launch_params);
+
+    return true;
 
     FLASHATTNLIB_END_FUNC 
 }
@@ -427,7 +422,7 @@ bool flash_attn_bwd(
     void *dq_tmp_ptr = workspace_ptr;
     // nullptr out to calculate workspace size
     if (out == nullptr) {
-        if (loop) {
+        if (loop || num_splits > 1) {
             *workspace_size = uint64_t(total_q) * num_heads * head_size * sizeof(float);
         } else {
             *workspace_size = 0;
@@ -435,13 +430,10 @@ bool flash_attn_bwd(
         return true;
     }
 
-    if (loop) {
-        SetZero(dq_tmp_ptr, 4, {total_q, num_heads, head_size}, stream);
-    }
-
     if( zero_tensors ) {
         SetZero(dq, 2, {total_q, num_heads, head_size}, stream);
         SetZero(dk, 2, {total_q, num_heads, head_size}, stream);
+        SetZero(dv, 2, {total_q, num_heads, head_size}, stream);
         SetZero(dsoftmax_ptr, 4, {batch_size, num_heads, max_seqlen_q}, stream);  
     }
 
@@ -473,7 +465,7 @@ bool flash_attn_bwd(
     launch(params, stream, /*configure=*/true);
 
     if (params.num_splits > 1) {
-        if (loop) {
+        if (!loop) {
             SetZero(dq_tmp_ptr, 4, {total_q, num_heads, head_size}, stream);
             params.o_tmp_ptr = dq_tmp_ptr; // o_tmp stores dq_tmp in the backward pass
         } else {
@@ -495,6 +487,8 @@ bool flash_attn_bwd(
             Float2Half(dq_tmp_ptr, dq, uint64_t(total_q) * num_heads * head_size, stream);
         }
     }
+
+    return true;
 
     FLASHATTNLIB_END_FUNC 
 }

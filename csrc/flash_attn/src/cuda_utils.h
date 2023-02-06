@@ -4,7 +4,7 @@
 #include "cuda_runtime.h"
 #include "fmha_utils.h"
 
-int GetCurrentDeviceId();
+static int GetCurrentDeviceId();
 
 static int GetCudaDeviceCount();
 
