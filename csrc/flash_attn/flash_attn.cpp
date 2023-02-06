@@ -322,7 +322,7 @@ bool flash_attn_fwd(
     if (zero_tensors) {
         SetZero(out,  2, {total_q, num_heads, head_size}, stream);
         SetConstValue<float>(softmax_lse_ptr, -std::numeric_limits<float>::infinity(), uint64_t(batch_size) * num_heads * max_seqlen_q, stream);   
-        if (return_softmax) SetZero(softmax_ptr, 2, {batch_size, num_heads, max_seqlen_q}, stream);  // float16
+        if (return_softmax) SetZero(softmax_ptr, 2, {batch_size, num_heads, max_seqlen_q, max_seqlen_k}, stream);  // float16
     }
 
     set_params_fprop(launch_params.params,
