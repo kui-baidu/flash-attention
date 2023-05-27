@@ -156,6 +156,7 @@ bool flash_attn_fwd_block(
         const float p_dropout,
         const float softmax_scale,
         const bool is_causal,
+        const bool is_bf16,
         void *softmax_lse_ptr,       // softmax log_sum_exp
         void *softmax_ptr,
         void *workspace_ptr,
@@ -187,6 +188,7 @@ bool flash_attn_bwd_block(
         const float p_dropout,
         const float softmax_scale,
         const bool is_causal,
+        const bool is_bf16,
         void *softmax_lse_ptr,
         void *dsoftmax_ptr,
         void *workspace_ptr,

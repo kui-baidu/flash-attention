@@ -515,6 +515,7 @@ bool flash_attn_fwd_block(
         const float p_dropout,
         const float softmax_scale,
         const bool is_causal,
+        const bool is_bf16,
         void *softmax_lse_ptr,       // softmax log_sum_exp
         void *softmax_ptr,
         void *workspace_ptr,
@@ -576,11 +577,11 @@ bool flash_attn_fwd_block(
                      p_dropout,
                      softmax_scale,
                      is_causal,
-                     /*is_bf16*/false,
+                     is_bf16,
                      /*num_splits=*/1);
     launch_params.params.blockmask = static_cast<int*>(const_cast<void*>(blockmask));
 
-    run_fmha_block_fp16_sm80(launch_params, /*configure=*/ true);
+    run_fmha_block_sm80(launch_params, /*configure=*/ true);
     // number of times random will be generated per thread, to offset philox counter in thc random
     // state
     int64_t counter_offset = launch_params.elts_per_thread + offset;
@@ -589,7 +590,7 @@ bool flash_attn_fwd_block(
         launch_params.params.philox_args = PhiloxCudaState(seed, counter_offset);
     }
 
-    run_fmha_block_fp16_sm80(launch_params, /*configure=*/false);
+    run_fmha_block_sm80(launch_params, /*configure=*/false);
 
     return true;
 
@@ -618,6 +619,7 @@ bool flash_attn_bwd_block(
         const float p_dropout,
         const float softmax_scale,
         const bool is_causal,
+        const bool is_bf16,
         void *softmax_lse_ptr,
         void *dsoftmax_ptr,
         void *workspace_ptr,
@@ -634,7 +636,7 @@ bool flash_attn_bwd_block(
     bool is_sm80 = dprops->major == 8 && dprops->minor == 0;
     bool is_sm8x = dprops->major == 8 && dprops->minor >= 0;
     ASSERT_CHECK(dprops->major == 8 && dprops->minor >= 0);
-    auto launch = &run_fmha_block_dgrad_fp16_sm80;
+    auto launch = &run_fmha_block_dgrad_sm80;
 
     bool is_dropout = p_dropout > 0.0;
 
@@ -684,7 +686,7 @@ bool flash_attn_bwd_block(
                      p_dropout,
                      softmax_scale,
                      is_causal,
-                     /*is_bf16*/false,
+                     is_bf16,
                      /*num_splits=*/1);
     params.blockmask = static_cast<int*>(const_cast<void*>(blockmask));
 
