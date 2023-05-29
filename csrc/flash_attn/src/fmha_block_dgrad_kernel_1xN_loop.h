@@ -31,12 +31,14 @@ inline __device__ void compute_block_dq_dk_dv_1xN_one_iter(const Params &params,
                                                      const int loop_step_idx) {
 
 #if defined(__CUDA_ARCH__) &&  __CUDA_ARCH__ >= 800
+    constexpr bool is_fp16_type = std::is_same<typename Kernel_traits::elem_type, __half>::value;
     using elem_type = typename Kernel_traits::elem_type;
 #else
     constexpr bool is_fp16_type = std::is_same<typename Kernel_traits::elem_type, __half>::value;
     assert(is_fp16_type);
     using elem_type = __half;
 #endif
+
 
     // The description of the CTA tile for the 1st batched GEMM.
     using Cta_tile_p = typename Kernel_traits::Cta_tile_p;
@@ -262,7 +264,7 @@ inline __device__ void compute_block_dq_dk_dv_1xN_one_iter(const Params &params,
         const uint32_t scale_dropout = params.scale_dropout;
         #pragma unroll
         for(int it=0; it < Gmem_tile_v::LDGS; it++){
-            gmem_v.fetch_[it] = fmha::hmul8(scale_dropout, gmem_v.fetch_[it]);
+            gmem_v.fetch_[it] = fmha::hmul8<elem_type>(scale_dropout, gmem_v.fetch_[it]);
         }
     }
 
@@ -485,10 +487,10 @@ inline __device__ void compute_block_dq_dk_dv_1xN_one_iter(const Params &params,
             for( int mi = 0; mi < Mma_tile_p::MMAS_M; mi++ ) {
                 #pragma unroll
                 for( int ni = 0; ni < Mma_tile_p::MMAS_N; ni++ ) {
-                    frag_p[mi][ni].hmul(frag_dp[mi][ni]);
+                    frag_p[mi][ni].template hmul<elem_type>(frag_dp[mi][ni]);
                 }
             }
-        } else {
+        } else if (is_fp16_type) {
             __half2 dp_sum_half[Mma_tile_p::MMAS_M * 2];
             for (int mi = 0; mi < Mma_tile_p::MMAS_M * 2; mi++) {
                 dp_sum_half[mi] = __float2half2_rn(dp_sum[mi]);
@@ -511,6 +513,31 @@ inline __device__ void compute_block_dq_dk_dv_1xN_one_iter(const Params &params,
                     }
                 }
             }
+        } else {
+#if defined(__CUDA_ARCH__) &&  __CUDA_ARCH__ >= 800
+            __nv_bfloat162 dp_sum_half[Mma_tile_p::MMAS_M * 2];
+            for (int mi = 0; mi < Mma_tile_p::MMAS_M * 2; mi++) {
+                dp_sum_half[mi] = __float2bfloat162_rn(dp_sum[mi]);
+            }
+            const __nv_bfloat16 zero_h = __nv_bfloat16(0.f);
+            #pragma unroll
+            for( int mi = 0; mi < Mma_tile_p::MMAS_M; mi++ ) {
+                #pragma unroll
+                for( int ni = 0; ni < Mma_tile_p::MMAS_N; ni++ ) {
+                    #pragma unroll
+                    for (int ii = 0; ii < 4; ++ii) {
+                        const __nv_bfloat162 p = frag_p[mi][ni].template elt_as<__nv_bfloat162>(ii);
+                        const __nv_bfloat162 pdp = __hmul2(p, frag_dp[mi][ni].template elt_as<__nv_bfloat162>(ii));
+                        // If this element is dropped, then frag_p stores -p instead of p.
+                        // So pd holds -p * dp_sum in that case.
+                        const __nv_bfloat162 pd = __hmul2(p, dp_sum_half[mi * 2 + (ii % 2)]);
+                        const __nv_bfloat16 low = __low2bfloat16(p) >= zero_h ? __low2bfloat16(pdp) : 	__low2bfloat16(pd);
+                        const __nv_bfloat16 high = __low2bfloat16(p) >= zero_h ? __low2bfloat16(pdp) : __low2bfloat16(pd);
+                        frag_p[mi][ni].template elt_as<__nv_bfloat162>(ii) = __halves2bfloat162(low, high);
+                    }
+                }
+            }
+#endif
         }
 
         // Store dp to smem for transpose
