@@ -49,7 +49,7 @@ inline __device__ void compute_block_dq_dk_dv_1xN_one_iter(const Params &params,
         fmha::Cta_tile_extd<Cta_tile_p::N, Cta_tile_p::K, Cta_tile_p::M, Cta_tile_p::WARPS_N, 1, Cta_tile_p::WARPS_M>;
 
     static_assert(Cta_tile_dkv::M == 512 ||  Cta_tile_dkv::M == 256 || Cta_tile_dkv::M == 128);
-    static_assert(Cta_tile_dkv::N == 16 || Cta_tile_dkv::N == 32 || Cta_tile_dkv::N == 64);
+    static_assert(Cta_tile_dkv::N == 16 || Cta_tile_dkv::N == 32 || Cta_tile_dkv::N == 64 || Cta_tile_dkv::N == 128);
     static_assert(Cta_tile_dkv::K == 16);
 
     // The MMA tile for the 1st GEMM.

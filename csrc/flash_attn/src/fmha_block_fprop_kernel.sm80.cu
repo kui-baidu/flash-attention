@@ -88,6 +88,9 @@ void run_fmha_block_sm80(Launch_params<FMHA_fprop_params> &launch_params,
         } else if (launch_params.params.d == 64) {
             using Kernel_traits = FMHA_kernel_traits<256, 64, 16, 1, 4, 0x08u, elem_type>;
             run_fmha_block_sm80_loop_<Kernel_traits>(launch_params, configure);
+        } else if (launch_params.params.d == 128) {
+            using Kernel_traits = FMHA_kernel_traits<256, 128, 16, 1, 4, 0x08u, elem_type>;
+            run_fmha_block_sm80_loop_<Kernel_traits>(launch_params, configure);
         }
     }));
 }

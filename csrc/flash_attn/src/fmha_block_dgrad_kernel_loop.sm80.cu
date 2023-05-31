@@ -61,6 +61,9 @@ void run_fmha_block_dgrad_sm80(const FMHA_dgrad_params &params, cudaStream_t str
         } else if (params.d == 64) {
             using Kernel_traits = FMHA_kernel_traits<256, 64, 16, 1, 8, 0x100u, elem_type>;
             run_fmha_block_dgrad_sm80_loop_<Kernel_traits>(params, stream);
+        } else if (params.d == 128) {
+            using Kernel_traits = FMHA_kernel_traits<256, 128, 16, 1, 8, 0x08u, elem_type>;
+            run_fmha_block_dgrad_sm80_loop_<Kernel_traits>(params, stream);
         }
     }));
 }
